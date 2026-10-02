@@ -1,0 +1,13 @@
+langchain-community
+langchain-groq
+langchain
+langchain-google-genai
+langgraph
+dotenv
+pypdf
+langchain-text-splitters
+langchain-chroma
+gitpython
+sentence-transformers
+langchain-huggingface
+streamlit
