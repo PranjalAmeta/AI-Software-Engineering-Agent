@@ -10,7 +10,7 @@ def load_file(repo_path:str):
         loader_cls=TextLoader, 
         recursive=True
     )
-    docs=loader.load()  # list of document obj
+    docs=loader.load()  # list of document obj 
     for doc in docs:
         source=Path(doc.metadata['source'])
         'return the actual folder inside the main folder'

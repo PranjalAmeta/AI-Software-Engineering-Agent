@@ -11,3 +11,4 @@ gitpython
 sentence-transformers
 langchain-huggingface
 streamlit
+torchvision

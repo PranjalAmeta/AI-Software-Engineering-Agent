@@ -1,4 +1,3 @@
-from pydantic_core._pydantic_core import _recursion_limit
 from pathlib import Path
 from dotenv import load_dotenv
 from ingestion.github import clone_repo
@@ -11,75 +10,116 @@ from langchain_groq import ChatGroq
 from agent.agents import create_assistant
 import streamlit as st
 
-
-# st.title('AI Software Engineering Assistant')
-# repo_link=st.text_input('Enter the repo file')
-
 load_dotenv()
 
 '''
 CREATE CHAIN AT END 
 '''
 
+### UI
+st.title('🤖 AI Software Engineering Agent 🤖')
+
+
+## Make the execution stop till we dont get the link
+if 'link_uploaded' not in st.session_state:
+    st.session_state.link_uploaded=False
+
+## Session state should have memory and link and agent
+if 'messages' not in st.session_state:
+    st.session_state.messages=[]
+
+if 'agent' not in st.session_state:
+    st.session_state.agent=None
+
+    
 base_url=Path(__file__).resolve().parents[1]
 path=base_url/'workspace'/'repositories'
 
 ## cloning 
-def clone_repositories(repo_link:str,path:str):
-    if(repo_link.endswith('.git')):
+def process_docs(repo_link:str,path:str):
+
+    def clone_repositories(repo_link:str,path:str):
         repo_name=repo_link.split('/')[-1].removesuffix('.git')
         new_path=path/repo_name
         if(new_path.exists()):
             return new_path
         return clone_repo(repo_link,repo_name,path)
 
-    
+        
+    # repo_path=clone_repositories("https://github.com/Naman5981/Employee-Performance-Tracker.git",path)
+
+    repo_path=clone_repositories(repo_link,path)
+    # print(repo_path)
+
+    # ## getting chunks
+    docs=load_file(repo_path)     ## Will have list of document with each que
+    # print(docs[0].metadata['source'])
 
     
 
-repo_path=clone_repositories("https://github.com/Naman5981/Employee-Performance-Tracker.git",path)
+    # ## Getting chunks
+    splitted_docs=split_docs(docs)
+    # print(splitted_docs)
+
+
+    ## embeddings
+    embeddings=HuggingFaceEmbeddings(
+        model='sentence-transformers/all-MiniLM-L6-v2'
+    )
+
+    ### vector db
+    vector_stores=get_vecdb(splitted_docs,embeddings)
+    # print(vector_stores)
+    # print(vector_stores.similarity_search("trie"))
+
+
+
+    system_prompt='''
+        - You are a helpful assistant that will be used to help in understanding the workflow of projects
+        and anything related to it .
+        - if you got any question outside the given project than you can also search for it.
+    '''
+
+    llm=ChatGroq(
+        model='openai/gpt-oss-120b'
+    ) 
+
+    agent=create_assistant(llm,system_prompt,vector_stores,repo_path)
+
+    st.session_state.agent=agent
+    st.session_state.link_uploaded=True
+
+
         
 
-# ## getting chunks
-docs=load_file(repo_path)     ## Will have list of document with each que
-# print(docs[0].metadata['source'])
+if not st.session_state.link_uploaded:
+    repo_link=st.text_input('Enter the repository link: ')
+    if(not repo_link.endswith('.git')):
+        print('Enter a correct github link')
+    else:
+        with st.spinner('Processing...'):
+            process_docs(repo_link,path)
+        st.rerun()
+
+if st.session_state.link_uploaded and st.session_state.agent:
+
+    for message in st.session_state.messages:
+        st.chat_message(message['role']).markdown(message['content']) 
+
+    query=st.chat_input('Enter your Query...')
+    if query:
+        st.chat_message('user').markdown(query)
+        st.session_state.messages.append({'role':'user','content':query})
+        res=res=st.session_state.agent.invoke(
+            {'messages':[
+                {'role':'user','content':query},
+            ]},
+            config={'configurable':{'thread_id':1},'recursion_limit':10},
+        )
+        ans=res['messages'][-1].content 
+        st.session_state.messages.append({'role':'ai','content':ans})
+        st.chat_message('ai').markdown(ans)
+    
 
  
 
-# ## Getting chunks
-splitted_docs=split_docs(docs)
-# print(splitted_docs)
-
-
-## embeddings
-embeddings=HuggingFaceEmbeddings(
-    model='sentence-transformers/all-MiniLM-L6-v2'
-)
-
-### vector db
-vector_stores=get_vecdb(splitted_docs,embeddings)
-# print(vector_stores)
-# print(vector_stores.similarity_search("trie"))
-
-
-
-system_prompt='''
-    - You are a helpful assistant that will be used to help in understanding the workflow of projects
-      and anything related to it .
-    - if you got any question outside the given project than you can also search for it.
-'''
-
-llm=ChatGroq(
-    model='openai/gpt-oss-120b'
-)
-
-agent=create_assistant(llm,system_prompt,vector_stores,repo_path)
-
-res=agent.invoke({
-    'messages':[
-        {'role':'user','content':'what is the entry point and how does controller works'}
-    ],
-    'recursion_limit':10
-})
-print(res,"\n\n\n")
-print(res['messages'][-1].content) 

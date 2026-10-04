@@ -11,6 +11,7 @@ def create_assistant(llm,system_prompt,vector_stores,repo_path):
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
+        checkpointer=InMemorySaver()
     )
     return agent
 
