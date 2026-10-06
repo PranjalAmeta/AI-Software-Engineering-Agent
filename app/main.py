@@ -45,8 +45,6 @@ def process_docs(repo_link:str,path:str):
             return new_path
         return clone_repo(repo_link,repo_name,path)
 
-        
-    # repo_path=clone_repositories("https://github.com/Naman5981/Employee-Performance-Tracker.git",path)
 
     repo_path=clone_repositories(repo_link,path)
     # print(repo_path)
@@ -119,7 +117,3 @@ if st.session_state.link_uploaded and st.session_state.agent:
         ans=res['messages'][-1].content 
         st.session_state.messages.append({'role':'ai','content':ans})
         st.chat_message('ai').markdown(ans)
-    
-
- 
-
